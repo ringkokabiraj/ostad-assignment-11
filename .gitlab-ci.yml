@@ -1,0 +1,45 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  IMAGE_NAME: "harbor-test.ibas.gov.bd/ringko/zero-downtime-app"
+  KUBE_CONFIG: "/root/.kube/config"
+
+before_script:
+  - echo "Logging into Harbor..."
+  - echo "$HARBOR_PASSWORD" | docker login harbor-test.ibas.gov.bd -u "$HARBOR_USERNAME" --password-stdin
+
+build-image:
+  stage: build
+  script:
+    - docker build -t $IMAGE_NAME:$CI_COMMIT_SHORT_SHA .
+    - docker tag $IMAGE_NAME:$CI_COMMIT_SHORT_SHA $IMAGE_NAME:latest
+    - docker push $IMAGE_NAME:$CI_COMMIT_SHORT_SHA
+    - docker push $IMAGE_NAME:latest
+
+deploy-blue-green:
+  stage: deploy
+  script:
+    - mkdir -p ~/.kube
+    - echo "$KUBECONFIG_CONTENT" | base64 -d > ~/.kube/config
+    - kubectl apply -f k8s/blue-deployment.yaml
+    - kubectl apply -f k8s/service.yaml
+    - echo "Initial (blue) deployed. Switch manually to green if needed."
+  when: manual
+
+deploy-rolling:
+  stage: deploy
+  script:
+    - mkdir -p ~/.kube
+    - echo "$KUBECONFIG_CONTENT" | base64 -d > ~/.kube/config
+    - kubectl set image deployment/app-rolling app=$IMAGE_NAME:$CI_COMMIT_SHORT_SHA
+  when: manual
+
+deploy-canary:
+  stage: deploy
+  script:
+    - mkdir -p ~/.kube
+    - echo "$KUBECONFIG_CONTENT" | base64 -d > ~/.kube/config
+    - kubectl apply -f k8s/canary-rollout.yaml
+  when: manual

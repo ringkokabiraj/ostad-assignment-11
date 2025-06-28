@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: canary-app
+  namespace: blue-green-canary
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: canary
+  template:
+    metadata:
+      labels:
+        app: canary
+    spec:
+      containers:
+      - name: app
+        image: your-dockerhub-username/zero-downtime-app:v1
+        ports:
+        - containerPort: 3000
+  strategy:
+    canary:
+      steps:
+      - setWeight: 20
+      - pause: { duration: 30 }
+      - setWeight: 50
+      - pause: { duration: 30 }
+      - setWeight: 100
