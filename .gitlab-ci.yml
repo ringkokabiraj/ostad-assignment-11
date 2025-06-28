@@ -1,6 +1,6 @@
 stages:
-  - build
-  - deploy
+  - docker-build-push
+  - k8s-deploy
 
 variables:
   IMAGE_NAME: "harbor-test.ibas.gov.bd/ringko/zero-downtime-app"
@@ -11,7 +11,7 @@ before_script:
   - echo "$HARBOR_PASSWORD" | docker login harbor-test.ibas.gov.bd -u "$HARBOR_USERNAME" --password-stdin
 
 build-image:
-  stage: build
+  stage: docker-build-push
   script:
     - docker build -t $IMAGE_NAME:$CI_COMMIT_SHORT_SHA .
     - docker tag $IMAGE_NAME:$CI_COMMIT_SHORT_SHA $IMAGE_NAME:latest
@@ -37,7 +37,7 @@ deploy-rolling:
   when: manual
 
 deploy-canary:
-  stage: deploy
+  stage: k8s-deploy
   script:
     - mkdir -p ~/.kube
     - echo "$KUBECONFIG_CONTENT" | base64 -d > ~/.kube/config
